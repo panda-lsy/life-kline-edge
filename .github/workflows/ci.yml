@@ -25,14 +25,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: life-kline-edge/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: ./life-kline-edge
         run: npm ci
 
       - name: Run ESLint
-        working-directory: ./life-kline-edge
         run: npm run lint || true # 允许失败
 
   # 类型检查
@@ -49,14 +47,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: life-kline-edge/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: ./life-kline-edge
         run: npm ci
 
       - name: TypeScript check
-        working-directory: ./life-kline-edge
         run: npx tsc -b --noEmit
 
   # 构建测试
@@ -73,21 +69,18 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: life-kline-edge/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: ./life-kline-edge
         run: npm ci
 
       - name: Build
-        working-directory: ./life-kline-edge
         run: npm run build
         env:
           NODE_ENV: production
 
       # 检查构建产物大小
       - name: Check bundle size
-        working-directory: ./life-kline-edge
         run: |
           echo "📦 构建产物大小："
           du -sh dist/*
