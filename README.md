@@ -5,8 +5,8 @@
 **本项目由[阿里云ESA](https://www.aliyun.com/product/esa)提供加速、计算和保护**![img](https://img.alicdn.com/imgextra/i3/O1CN01H1UU3i1Cti9lYtFrs_!!6000000000139-2-tps-7534-844.png)
 
 
-[![CI](https://github.com/yourusername/life-kline-edge/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/life-kline-edge/actions/workflows/ci.yml)
-[![Deploy](https://github.com/yourusername/life-kline-edge/actions/workflows/deploy.yml/badge.svg)](https://github.com/yourusername/life-kline-edge/actions/workflows/deploy.yml)
+[![CI](https://github.com/panda-lsy/life-kline-edge/actions/workflows/ci.yml/badge.svg)](https://github.com/panda-lsy/life-kline-edge/actions/workflows/ci.yml)
+[![Deploy](https://github.com/panda-lsy/life-kline-edge/actions/workflows/deploy.yml/badge.svg)](https://github.com/panda-lsy/life-kline-edge/actions/workflows/deploy.yml)
 
 ## 📖 项目简介
 
@@ -69,7 +69,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/life-kline-edge.git
+git clone https://github.com/panda-lsy/life-kline-edge.git
 cd life-kline-edge
 
 # 安装依赖
@@ -107,7 +107,7 @@ git add .
 git commit -m "Initial commit"
 
 # 添加远程仓库
-git remote add origin https://github.com/yourusername/life-kline-edge.git
+git remote add origin https://github.com/panda-lsy/life-kline-edge.git
 
 # 推送到 GitHub
 git branch -M main
@@ -144,7 +144,7 @@ GitHub Actions 会自动执行以下步骤:
 
 #### 5. 部署成功后
 
-- 🌐 访问: `https://yourusername.github.io/life-kline-edge/`
+- 🌐 访问: `https://panda-lsy.github.io/life-kline-edge/`
 - ⏱️ 通常需要 1-3 分钟完成部署
 
 ### 手动部署到 ESA Pages
