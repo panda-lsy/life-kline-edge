@@ -67,7 +67,8 @@ export class EdgeFunctionService {
    */
   private async request<T>(
     endpoint: string,
-    body?: any
+    body?: any,
+    method: 'GET' | 'POST' | 'DELETE' = body ? 'POST' : 'GET'
   ): Promise<T> {
     const url = `${this.config.baseURL}${endpoint}`;
 
@@ -76,11 +77,11 @@ export class EdgeFunctionService {
 
     try {
       const response = await fetch(url, {
-        method: body ? 'POST' : 'GET',
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: body ? JSON.stringify(body) : undefined,
+        body: method !== 'GET' && body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
 
@@ -112,13 +113,14 @@ export class EdgeFunctionService {
    */
   private async requestWithRetry<T>(
     endpoint: string,
-    body?: any
+    body?: any,
+    method: 'GET' | 'POST' | 'DELETE' = body ? 'POST' : 'GET'
   ): Promise<T> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
-        return await this.request<T>(endpoint, body);
+        return await this.request<T>(endpoint, body, method);
       } catch (error) {
         lastError = error as Error;
 
@@ -141,7 +143,7 @@ export class EdgeFunctionService {
   async calculateBazi(birthData: BirthData): Promise<CalculateBaziResponse> {
     try {
       const response = await this.requestWithRetry<CalculateBaziResponse>(
-        '/edge-functions/calculate-bazi',
+        '/calculate-bazi',
         { birthData }
       );
 
@@ -164,7 +166,7 @@ export class EdgeFunctionService {
   ): Promise<AIAnalyzeResponse> {
     try {
       const response = await this.requestWithRetry<AIAnalyzeResponse>(
-        '/edge-functions/ai-analyze',
+        '/ai-analyze',
         { baziResult, model }
       );
 
@@ -173,6 +175,102 @@ export class EdgeFunctionService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'AI 分析失败',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取历史记录
+   */
+  async getHistory(): Promise<{
+    success: boolean;
+    data?: any[];
+    error?: string;
+    timestamp?: string;
+  }> {
+    try {
+      const response = await this.requestWithRetry<{
+        success: boolean;
+        data: any[];
+      }>('/history', undefined, 'GET');
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '获取历史记录失败',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 添加历史记录
+   */
+  async addHistory(record: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+    timestamp?: string;
+  }> {
+    try {
+      const response = await this.requestWithRetry<{
+        success: boolean;
+        data: any;
+      }>('/history', record, 'POST');
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '添加历史记录失败',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 删除历史记录
+   */
+  async deleteHistory(recordId: string): Promise<{
+    success: boolean;
+    error?: string;
+    timestamp?: string;
+  }> {
+    try {
+      const response = await this.requestWithRetry<{
+        success: boolean;
+      }>(`/history/${recordId}`, undefined, 'DELETE');
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '删除历史记录失败',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 清空历史记录
+   */
+  async clearHistory(): Promise<{
+    success: boolean;
+    error?: string;
+    timestamp?: string;
+  }> {
+    try {
+      const response = await this.requestWithRetry<{
+        success: boolean;
+      }>('/history', undefined, 'DELETE');
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '清空历史记录失败',
         timestamp: new Date().toISOString(),
       };
     }

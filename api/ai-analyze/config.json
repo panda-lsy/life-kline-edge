@@ -1,0 +1,22 @@
+{
+  "name": "ai-analyze",
+  "version": "1.0.0",
+  "description": "AI 分析边缘函数配置",
+  "runtime": "edge",
+  "memory": "256MB",
+  "timeout": "30s",
+  "environment": {
+    "production": {
+      "KV_NAMESPACE": "AI_CACHE",
+      "GEMINI_API_KEY": "",
+      "OPENAI_API_KEY": "",
+      "DEEPSEEK_API_KEY": ""
+    },
+    "development": {
+      "KV_NAMESPACE": "AI_CACHE_DEV",
+      "GEMINI_API_KEY": "",
+      "OPENAI_API_KEY": "",
+      "DEEPSEEK_API_KEY": ""
+    }
+  }
+}

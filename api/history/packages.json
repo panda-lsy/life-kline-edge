@@ -1,0 +1,12 @@
+{
+  "name": "history",
+  "version": "1.0.0",
+  "description": "历史记录边缘函数",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler publish"
+  },
+  "dependencies": {}
+}

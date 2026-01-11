@@ -1,0 +1,12 @@
+{
+  "name": "ai-analyze",
+  "version": "1.0.0",
+  "description": "AI 分析边缘函数",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler publish"
+  },
+  "dependencies": {}
+}

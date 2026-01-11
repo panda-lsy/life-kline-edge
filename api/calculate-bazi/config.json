@@ -1,0 +1,16 @@
+{
+  "name": "calculate-bazi",
+  "version": "1.0.0",
+  "description": "八字计算边缘函数配置",
+  "runtime": "edge",
+  "memory": "128MB",
+  "timeout": "10s",
+  "environment": {
+    "production": {
+      "KV_NAMESPACE": "BAZI_CACHE"
+    },
+    "development": {
+      "KV_NAMESPACE": "BAZI_CACHE_DEV"
+    }
+  }
+}
