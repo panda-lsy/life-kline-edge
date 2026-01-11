@@ -404,7 +404,6 @@ function App() {
           </div>
         )}
       </div>
-    </>
   );
 }
 

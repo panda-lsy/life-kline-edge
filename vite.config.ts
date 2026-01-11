@@ -30,8 +30,4 @@ export default defineConfig({
   },
   // 图片优化配置
   assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.webp'],
-  // SPA 路由配置
-  server: {
-    historyApiFallback: true,
-  },
 })
