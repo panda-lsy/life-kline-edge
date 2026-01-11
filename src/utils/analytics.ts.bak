@@ -1,0 +1,378 @@
+/**
+ * 性能监控和分析工具
+ * 集成 Web Vitals 监控,收集性能指标
+ */
+
+import { onCLS, onFCP, onFID, onLCP, onTTFB } from 'web-vitals';
+
+/**
+ * 性能指标类型
+ */
+export interface PerformanceMetrics {
+  /** First Contentful Paint - 首次内容绘制 */
+  fcp?: number;
+  /** Largest Contentful Paint - 最大内容绘制 */
+  lcp?: number;
+  /** First Input Delay - 首次输入延迟 */
+  fid?: number;
+  /** Time to First Byte - 首字节时间 */
+  ttfb?: number;
+  /** Cumulative Layout Shift - 累积布局偏移 */
+  cls?: number;
+  /** 收集时间 */
+  timestamp: number;
+}
+
+/**
+ * 分析事件类型
+ */
+export interface AnalyticsEvent {
+  /** 事件名称 */
+  name: string;
+  /** 事件类别 */
+  category: string;
+  /** 事件标签 */
+  label?: string;
+  /** 事件值 */
+  value?: number;
+  /** 自定义属性 */
+  properties?: Record<string, any>;
+  /** 时间戳 */
+  timestamp: number;
+}
+
+/**
+ * 分析配置
+ */
+interface AnalyticsConfig {
+  /** 是否启用分析 */
+  enabled: boolean;
+  /** 上报端点 */
+  endpoint?: string;
+  /** 上传批次大小 */
+  batchSize: number;
+  /** 上传间隔(毫秒) */
+  flushInterval: number;
+}
+
+/**
+ * 默认配置
+ */
+const DEFAULT_CONFIG: AnalyticsConfig = {
+  enabled: true,
+  batchSize: 10,
+  flushInterval: 5000, // 5秒
+};
+
+/**
+ * Analytics 类
+ */
+class Analytics {
+  private config: AnalyticsConfig;
+  private eventQueue: AnalyticsEvent[] = [];
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private metrics: PerformanceMetrics = {
+    timestamp: Date.now(),
+  };
+
+  constructor(config: Partial<AnalyticsConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.init();
+  }
+
+  /**
+   * 初始化分析
+   */
+  private init() {
+    if (!this.config.enabled || typeof window === 'undefined') {
+      return;
+    }
+
+    // 监听页面可见性变化
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.flush();
+      }
+    });
+
+    // 监听页面卸载
+    window.addEventListener('beforeunload', () => {
+      this.flush();
+    });
+
+    // 定时刷新队列
+    this.startFlushTimer();
+  }
+
+  /**
+   * 启动定时刷新
+   */
+  private startFlushTimer() {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
+
+    this.flushTimer = setInterval(() => {
+      this.flush();
+    }, this.config.flushInterval);
+  }
+
+  /**
+   * 追踪事件
+   */
+  track(name: string, properties: Record<string, any> = {}): void {
+    if (!this.config.enabled) return;
+
+    const event: AnalyticsEvent = {
+      name,
+      category: 'user_event',
+      properties,
+      timestamp: Date.now(),
+    };
+
+    this.eventQueue.push(event);
+
+    if (this.eventQueue.length >= this.config.batchSize) {
+      this.flush();
+    }
+  }
+
+  /**
+   * 追踪页面访问
+   */
+  trackPageView(path: string, title: string = ''): void {
+    this.track('page_view', {
+      path,
+      title: title || document.title,
+      referrer: document.referrer,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+  }
+
+  /**
+   * 追踪错误
+   */
+  trackError(error: Error, context?: Record<string, any>): void {
+    this.track('error', {
+      message: error.message,
+      stack: error.stack,
+      ...context,
+    });
+  }
+
+  /**
+   * 追踪性能指标
+   */
+  trackPerformance(metricName: string, value: number): void {
+    this.track('performance', {
+      metricName,
+      value,
+      userAgent: navigator.userAgent,
+    });
+  }
+
+  /**
+   * 初始化 Web Vitals 监控
+   */
+  initWebVitals() {
+    if (typeof window === 'undefined') return;
+
+    // FCP
+    onFCP((metric) => {
+      this.metrics.fcp = metric.value;
+      this.trackPerformance('fcp', metric.value);
+      console.log(`FCP: ${metric.value.toFixed(2)}ms`);
+    });
+
+    // LCP
+    onLCP((metric) => {
+      this.metrics.lcp = metric.value;
+      this.trackPerformance('lcp', metric.value);
+      console.log(`LCP: ${metric.value.toFixed(2)}ms`);
+    });
+
+    // FID
+    onFID((metric) => {
+      this.metrics.fid = metric.value;
+      this.trackPerformance('fid', metric.value);
+      console.log(`FID: ${metric.value.toFixed(2)}ms`);
+    });
+
+    // CLS
+    onCLS((metric) => {
+      this.metrics.cls = metric.value;
+      this.trackPerformance('cls', metric.value);
+      console.log(`CLS: ${metric.value.toFixed(4)}`);
+    });
+
+    // TTFB
+    onTTFB((metric) => {
+      this.metrics.ttfb = metric.value;
+      this.trackPerformance('ttfb', metric.value);
+      console.log(`TTFB: ${metric.value.toFixed(2)}ms`);
+    });
+  }
+
+  /**
+   * 获取性能指标
+   */
+  getMetrics(): PerformanceMetrics {
+    return { ...this.metrics };
+  }
+
+  /**
+   * 评估性能等级
+   */
+  evaluatePerformance(): {
+    grade: 'good' | 'needs-improvement' | 'poor';
+    score: number;
+    recommendations: string[];
+  } {
+    const metrics = this.metrics;
+    const recommendations: string[] = [];
+    let score = 100;
+
+    // FCP 评估 (目标 < 2s)
+    if (metrics.fcp) {
+      if (metrics.fcp > 4000) {
+        recommendations.push('FCP 过慢 (>4s),考虑优化资源加载');
+        score -= 30;
+      } else if (metrics.fcp > 2000) {
+        recommendations.push('FCP 需要优化 (>2s),建议减少阻塞资源');
+        score -= 15;
+      }
+    }
+
+    // LCP 评估 (目标 < 2.5s)
+    if (metrics.lcp) {
+      if (metrics.lcp > 4000) {
+        recommendations.push('LCP 过慢 (>4s),优化关键资源');
+        score -= 30;
+      } else if (metrics.lcp > 2500) {
+        recommendations.push('LCP 需要优化 (>2.5s),预加载关键资源');
+        score -= 15;
+      }
+    }
+
+    // FID 评估 (目标 < 100ms)
+    if (metrics.fid) {
+      if (metrics.fid > 300) {
+        recommendations.push('FID 过慢 (>300ms),减少 JavaScript 执行时间');
+        score -= 30;
+      } else if (metrics.fid > 100) {
+        recommendations.push('FID 需要优化 (>100ms),拆分长任务');
+        score -= 15;
+      }
+    }
+
+    // CLS 评估 (目标 < 0.1)
+    if (metrics.cls) {
+      if (metrics.cls > 0.25) {
+        recommendations.push('CLS 过高 (>0.25),为图片和视频设置尺寸');
+        score -= 30;
+      } else if (metrics.cls > 0.1) {
+        recommendations.push('CLS 需要优化 (>0.1),避免内容偏移');
+        score -= 15;
+      }
+    }
+
+    let grade: 'good' | 'needs-improvement' | 'poor';
+    if (score >= 85) grade = 'good';
+    else if (score >= 60) grade = 'needs-improvement';
+    else grade = 'poor';
+
+    return { grade, score, recommendations };
+  }
+
+  /**
+   * 刷新队列,发送数据
+   */
+  private async flush() {
+    if (this.eventQueue.length === 0) return;
+
+    const events = [...this.eventQueue];
+    this.eventQueue = [];
+
+    if (!this.config.endpoint) {
+      console.log('Analytics events:', events);
+      return;
+    }
+
+    try {
+      const response = await fetch(this.config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ events }),
+        // 使用 keepalive 确保页面卸载时也能发送
+        keepalive: true,
+      });
+
+      if (!response.ok) {
+        console.error('Failed to send analytics data');
+        // 发送失败,重新加入队列
+        this.eventQueue.unshift(...events);
+      }
+    } catch (error) {
+      console.error('Error sending analytics:', error);
+      // 发送失败,重新加入队列
+      this.eventQueue.unshift(...events);
+    }
+  }
+
+  /**
+   * 禁用分析
+   */
+  disable() {
+    this.config.enabled = false;
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
+  }
+
+  /**
+   * 启用分析
+   */
+  enable() {
+    this.config.enabled = true;
+    this.startFlushTimer();
+  }
+}
+
+/**
+ * 创建 Analytics 实例
+ */
+export function createAnalytics(config?: Partial<AnalyticsConfig>): Analytics {
+  return new Analytics(config);
+}
+
+/**
+ * 默认分析实例
+ */
+export const analytics = createAnalytics({
+  enabled: import.meta.env.PROD, // 仅在生产环境启用
+  endpoint: import.meta.env.VITE_ANALYTICS_ENDPOINT, // 配置上报端点
+});
+
+/**
+ * React Hook: 使用分析
+ */
+export function useAnalytics() {
+  return {
+    trackEvent: analytics.track.bind(analytics),
+    trackPageView: analytics.trackPageView.bind(analytics),
+    trackError: analytics.trackError.bind(analytics),
+    trackPerformance: analytics.trackPerformance.bind(analytics),
+    getMetrics: analytics.getMetrics.bind(analytics),
+    evaluatePerformance: analytics.evaluatePerformance.bind(analytics),
+  };
+}
+
+/**
+ * 导出 Web Vitals 函数供外部使用
+ */
+export { onCLS, onFCP, onFID, onLCP, onTTFB };

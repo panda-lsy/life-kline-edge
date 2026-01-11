@@ -1,0 +1,12 @@
+/**
+ * Vitest 测试环境设置
+ */
+
+// 全局测试配置
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});

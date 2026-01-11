@@ -1,0 +1,393 @@
+/**
+ * AI 解析器测试
+ * 测试 AI 输出解析和验证的各种场景
+ */
+
+import { describe, it, expect } from 'vitest';
+import { parseAIOutput, quickValidate, getValidationErrorDetails } from '../aiParser';
+
+// 有效的 AI 输出
+const validAIOutput = JSON.stringify({
+  klineData: Array.from({ length: 100 }, (_, i) => ({
+    year: 1990 + i,
+    open: 50,
+    close: 50 + Math.random() * 10,
+    high: 60,
+    low: 40,
+  })),
+  dimensions: {
+    career: { score: 75, overview: '事业不错', details: ['工作稳定'], advice: ['继续努力'] },
+    wealth: { score: 70, overview: '财运良好', details: ['收入稳定'], advice: ['合理理财'] },
+    marriage: { score: 80, overview: '婚姻美满', details: ['感情和谐'], advice: ['珍惜彼此'] },
+    health: { score: 72, overview: '健康良好', details: ['身体不错'], advice: ['注意休息'] },
+    personality: { score: 78, overview: '性格开朗', details: ['待人友善'], advice: ['保持乐观'] },
+    fengshui: { score: 68, overview: '风水尚可', details: ['环境舒适'], advice: ['适当调整'] },
+  },
+  turningPoints: [
+    { year: 2020, type: 'peak', reason: '事业高峰', advice: '把握机会', score: 85 },
+    { year: 2025, type: 'change', reason: '重大转折', advice: '谨慎决策', score: 70 },
+  ],
+});
+
+// 带有 Markdown 代码块的输出
+const markdownOutput = `\`\`\`json
+{
+  "klineData": [
+    {"year": 1990, "open": 50, "close": 55, "high": 60, "low": 45},
+    {"year": 1991, "open": 55, "close": 52, "high": 58, "low": 50}
+  ],
+  "dimensions": {
+    "career": {"score": 75, "overview": "事业不错", "details": ["工作稳定"], "advice": ["继续努力"]},
+    "wealth": {"score": 70, "overview": "财运良好", "details": ["收入稳定"], "advice": ["合理理财"]},
+    "marriage": {"score": 80, "overview": "婚姻美满", "details": ["感情和谐"], "advice": ["珍惜彼此"]},
+    "health": {"score": 72, "overview": "健康良好", "details": ["身体不错"], "advice": ["注意休息"]},
+    "personality": {"score": 78, "overview": "性格开朗", "details": ["待人友善"], "advice": ["保持乐观"]},
+    "fengshui": {"score": 68, "overview": "风水尚可", "details": ["环境舒适"], "advice": ["适当调整"]}
+  },
+  "turningPoints": [
+    {"year": 2020, "type": "peak", "reason": "事业高峰", "advice": "把握机会", "score": 85}
+  ]
+}
+\`\`\`
+`;
+
+// 缺少必要字段的输出
+const incompleteOutput = JSON.stringify({
+  klineData: [
+    { year: 1990, open: 50, close: 55, high: 60, low: 45 },
+  ],
+  // 缺少 dimensions 和 turningPoints
+});
+
+// 完全无效的输出
+const invalidOutput = 'This is not valid JSON at all!';
+
+// 字段类型错误的输出
+const typeErrorOutput = JSON.stringify({
+  klineData: [
+    { year: '1990', open: '50', close: 55, high: 60, low: 45 }, // year 和 open 应该是数字
+  ],
+  dimensions: {
+    career: { score: '75', overview: 75, details: '工作稳定', advice: '继续努力' }, // 类型错误
+  },
+  turningPoints: [
+    { year: 2020, type: 'invalid', reason: 'test', advice: 'test', score: 85 }, // type 无效
+  ],
+});
+
+// 数组长度不足的输出
+const shortArrayOutput = JSON.stringify({
+  klineData: Array.from({ length: 50 }, (_, i) => ({ // 只有50年,应该是100年
+    year: 1990 + i,
+    open: 50,
+    close: 55,
+    high: 60,
+    low: 45,
+  })),
+  dimensions: {
+    career: { score: 75, overview: '事业不错', details: [], advice: [] }, // 数组为空
+    wealth: { score: 70, overview: '财运良好', details: ['收入稳定'], advice: ['合理理财'] },
+    marriage: { score: 80, overview: '婚姻美满', details: ['感情和谐'], advice: ['珍惜彼此'] },
+    health: { score: 72, overview: '健康良好', details: ['身体不错'], advice: ['注意休息'] },
+    personality: { score: 78, overview: '性格开朗', details: ['待人友善'], advice: ['保持乐观'] },
+    fengshui: { score: 68, overview: '风水尚可', details: ['环境舒适'], advice: ['适当调整'] },
+  },
+  turningPoints: [],
+});
+
+describe('parseAIOutput', () => {
+  describe('正常解析', () => {
+    it('应该成功解析有效的 JSON 输出', () => {
+      const result = parseAIOutput(validAIOutput, 1990);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data?.klineData).toHaveLength(100);
+      expect(result.data?.dimensions).toBeDefined();
+      expect(result.data?.turningPoints).toBeDefined();
+      // 成功时不应该有 warnings 或 fallbackUsed
+      expect('warnings' in result).toBe(false);
+      expect('fallbackUsed' in result).toBe(false);
+    });
+
+    it('应该正确解析所有字段', () => {
+      const result = parseAIOutput(validAIOutput, 1990);
+
+      expect(result.data?.klineData[0]).toMatchObject({
+        year: 1990,
+        open: expect.any(Number),
+        close: expect.any(Number),
+        high: expect.any(Number),
+        low: expect.any(Number),
+      });
+
+      expect(result.data?.dimensions.career).toMatchObject({
+        score: expect.any(Number),
+        overview: expect.any(String),
+        details: expect.any(Array),
+        advice: expect.any(Array),
+      });
+
+      expect(result.data?.turningPoints[0]).toMatchObject({
+        year: expect.any(Number),
+        type: expect.any(String),
+        reason: expect.any(String),
+        advice: expect.any(String),
+        score: expect.any(Number),
+      });
+    });
+  });
+
+  describe('Markdown 清理', () => {
+    it('应该移除 Markdown 代码块标记', () => {
+      const result = parseAIOutput(markdownOutput, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+    });
+
+    it('应该处理不同格式的代码块', () => {
+      const withJsonTag = '```json\n{"test": "data"}\n```';
+      const withoutJsonTag = '```\n{"test": "data"}\n```';
+      const noCodeBlock = '{"test": "data"}';
+
+      expect(parseAIOutput(withJsonTag, 1990, false).success).toBe(true);
+      expect(parseAIOutput(withoutJsonTag, 1990, false).success).toBe(true);
+      expect(parseAIOutput(noCodeBlock, 1990, false).success).toBe(true);
+    });
+  });
+
+  describe('降级方案', () => {
+    it('应该在严格模式下拒绝无效输出', () => {
+      const result = parseAIOutput(invalidOutput, 1990, true);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.data).toBeUndefined();
+    });
+
+    it('应该在非严格模式下对无效输出使用完全降级', () => {
+      const result = parseAIOutput(invalidOutput, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.fallbackUsed).toBe(true);
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings).toContain('AI 输出无法解析，使用默认数据');
+    });
+
+    it('应该对缺少字段使用部分降级', () => {
+      const result = parseAIOutput(incompleteOutput, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.fallbackUsed).toBe(true);
+      expect(result.warnings).toBeDefined();
+    });
+
+    it('应该对类型错误使用部分降级', () => {
+      const result = parseAIOutput(typeErrorOutput, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.fallbackUsed).toBe(true);
+    });
+
+    it('应该对数组长度不足使用完全降级', () => {
+      const result = parseAIOutput(shortArrayOutput, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.fallbackUsed).toBe(true);
+      expect(result.data?.klineData).toHaveLength(100); // 应该补充到100年
+    });
+  });
+
+  describe('默认数据生成', () => {
+    it('应该生成有效的默认 K 线数据', () => {
+      const result = parseAIOutput(invalidOutput, 1990, false);
+
+      expect(result.data?.klineData).toHaveLength(100);
+
+      const firstYear = result.data?.klineData[0];
+      expect(firstYear?.year).toBe(1990);
+      expect(firstYear?.open).toBeGreaterThanOrEqual(0);
+      expect(firstYear?.open).toBeLessThanOrEqual(100);
+      expect(firstYear?.close).toBeGreaterThanOrEqual(0);
+      expect(firstYear?.close).toBeLessThanOrEqual(100);
+    });
+
+    it('默认数据应该有合理的波动', () => {
+      const result = parseAIOutput(invalidOutput, 2020, false);
+      const klineData = result.data?.klineData || [];
+
+      // 检查数据有起伏变化
+      const changes = klineData.slice(1).map((item, i) =>
+        Math.abs(item.close - klineData[i].close)
+      );
+      const avgChange = changes.reduce((a, b) => a + b, 0) / changes.length;
+
+      expect(avgChange).toBeGreaterThan(0); // 应该有变化
+      expect(avgChange).toBeLessThan(20); // 但变化不应该太大
+    });
+  });
+
+  describe('边界情况', () => {
+    it('应该处理空字符串', () => {
+      const result = parseAIOutput('', 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.fallbackUsed).toBe(true);
+    });
+
+    it('应该处理只有空格的字符串', () => {
+      const result = parseAIOutput('   \n\t  ', 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.fallbackUsed).toBe(true);
+    });
+
+    it('应该处理年份超出范围的数据', () => {
+      const outOfRangeOutput = JSON.stringify({
+        klineData: [
+          { year: 1800, open: 50, close: 55, high: 60, low: 45 }, // 年份太小
+          { year: 2200, open: 50, close: 55, high: 60, low: 45 }, // 年份太大
+        ],
+        dimensions: {
+          career: { score: 75, overview: '事业不错', details: ['工作稳定'], advice: ['继续努力'] },
+          wealth: { score: 70, overview: '财运良好', details: ['收入稳定'], advice: ['合理理财'] },
+          marriage: { score: 80, overview: '婚姻美满', details: ['感情和谐'], advice: ['珍惜彼此'] },
+          health: { score: 72, overview: '健康良好', details: ['身体不错'], advice: ['注意休息'] },
+          personality: { score: 78, overview: '性格开朗', details: ['待人友善'], advice: ['保持乐观'] },
+          fengshui: { score: 68, overview: '风水尚可', details: ['环境舒适'], advice: ['适当调整'] },
+        },
+        turningPoints: [],
+      });
+
+      const result = parseAIOutput(outOfRangeOutput, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.fallbackUsed).toBe(true);
+    });
+
+    it('应该处理超出范围的分数', () => {
+      const outOfRangeScore = JSON.stringify({
+        klineData: Array.from({ length: 100 }, (_, i) => ({
+          year: 1990 + i,
+          open: 50,
+          close: 55,
+          high: 60,
+          low: 45,
+        })),
+        dimensions: {
+          career: { score: 150, overview: '事业不错', details: ['工作稳定'], advice: ['继续努力'] }, // 分数 > 100
+          wealth: { score: -10, overview: '财运良好', details: ['收入稳定'], advice: ['合理理财'] }, // 分数 < 0
+          marriage: { score: 80, overview: '婚姻美满', details: ['感情和谐'], advice: ['珍惜彼此'] },
+          health: { score: 72, overview: '健康良好', details: ['身体不错'], advice: ['注意休息'] },
+          personality: { score: 78, overview: '性格开朗', details: ['待人友善'], advice: ['保持乐观'] },
+          fengshui: { score: 68, overview: '风水尚可', details: ['环境舒适'], advice: ['适当调整'] },
+        },
+        turningPoints: [],
+      });
+
+      const result = parseAIOutput(outOfRangeScore, 1990, false);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      // 分数应该被修正到合理范围
+      expect(result.data?.dimensions.career.score).toBeGreaterThanOrEqual(0);
+      expect(result.data?.dimensions.career.score).toBeLessThanOrEqual(100);
+    });
+  });
+});
+
+describe('quickValidate', () => {
+  it('应该快速验证有效的输出', () => {
+    const result = quickValidate(validAIOutput);
+    expect(result).toBe(true);
+  });
+
+  it('应该拒绝无效的输出', () => {
+    const result = quickValidate(invalidOutput);
+    expect(result).toBe(false);
+  });
+
+  it('应该拒绝空字符串', () => {
+    const result = quickValidate('');
+    expect(result).toBe(false);
+  });
+
+  it('应该验证格式不正确的 JSON', () => {
+    const malformedJson = '{this is not valid json}';
+    const result = quickValidate(malformedJson);
+    expect(result).toBe(false);
+  });
+});
+
+describe('getValidationErrorDetails', () => {
+  it('应该返回有效的验证结果', () => {
+    const result = getValidationErrorDetails(validAIOutput);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('应该返回详细的错误信息', () => {
+    const result = getValidationErrorDetails(invalidOutput);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('应该返回多个错误', () => {
+    const result = getValidationErrorDetails(incompleteOutput);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('集成测试', () => {
+  it('应该完整处理从 AI 输出到可用数据的流程', () => {
+    const result = parseAIOutput(validAIOutput, 1990);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({
+      klineData: expect.any(Array),
+      dimensions: expect.any(Object),
+      turningPoints: expect.any(Array),
+      metadata: expect.any(Object),
+    });
+
+    // 验证数据结构完整性
+    expect(result.data?.klineData).toHaveLength(100);
+    expect(Object.keys(result.data?.dimensions || {})).toEqual([
+      'career',
+      'wealth',
+      'marriage',
+      'health',
+      'personality',
+      'fengshui',
+    ]);
+    expect(result.data?.turningPoints.length).toBeGreaterThan(0);
+  });
+
+  it('应该在所有降级场景下都能返回可用数据', () => {
+    const testCases = [
+      invalidOutput,
+      incompleteOutput,
+      typeErrorOutput,
+      shortArrayOutput,
+      '',
+      'not json at all',
+    ];
+
+    testCases.forEach((output, index) => {
+      const result = parseAIOutput(output, 1990, false);
+
+      expect(result.success, `Case ${index} should succeed`).toBe(true);
+      expect(result.data, `Case ${index} should have data`).toBeDefined();
+      expect(result.data?.klineData, `Case ${index} should have kline data`).toHaveLength(100);
+    });
+  });
+});

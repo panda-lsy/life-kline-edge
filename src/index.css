@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========== 全局样式 ========== */
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply m-0 min-h-screen bg-background text-text;
+    font-family: 'Microsoft YaHei', 'PingFang SC', 'Heiti SC', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+/* ========== 主题 CSS 变量 ========== */
+/* 主题切换过渡动画 */
+* {
+  transition-property: background-color, color, border-color, box-shadow;
+  transition-duration: 300ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* 禁用过渡的元素 */
+.no-transition,
+.no-transition *,
+img,
+video,
+canvas {
+  transition: none !important;
+}
+
+/* 中国风主题 (默认) */
+:root,
+[data-theme="chinese"] {
+  --color-primary: #C8102E; /* 中国红 - 与 TS 配置一致 */
+  --color-secondary: #FFD700; /* 金色 */
+  --color-background: #FEF7F0; /* 米白色 */
+  --color-surface: #FFFFFF;
+  --color-text: #1F2937;
+  --color-kline-up: #C8102E; /* 阳线 - 红色 */
+  --color-kline-down: #22C55E; /* 阴线 - 绿色 */
+}
+
+/* 赛博朋克主题 */
+[data-theme="cyberpunk"] {
+  --color-primary: #FF00FF; /* 霓虹粉 */
+  --color-secondary: #00FFFF; /* 霓虹蓝 */
+  --color-background: #0A0A0A; /* 深黑 */
+  --color-surface: #1A1A1A;
+  --color-text: #E0E0E0; /* 浅灰 - 与 TS 配置一致 */
+  --color-kline-up: #FF00FF;
+  --color-kline-down: #00FFFF;
+}
+
+/* 极简主题 */
+[data-theme="minimal"] {
+  --color-primary: #2563EB; /* 蓝色 - 与 TS 配置一致 */
+  --color-secondary: #64748B; /* 灰蓝 */
+  --color-background: #FFFFFF;
+  --color-surface: #F8FAFC;
+  --color-text: #0F172A;
+  --color-kline-up: #EF4444;
+  --color-kline-down: #22C55E;
+}
+
+/* ========== 自定义组件样式 ========== */
+@layer components {
+  /* 容器 */
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* 按钮基础样式 */
+  .btn {
+    @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:opacity-90;
+    @apply focus:ring-primary;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white hover:opacity-90;
+    @apply focus:ring-secondary;
+  }
+
+  /* 卡片 */
+  .card {
+    @apply bg-surface rounded-xl shadow-lg p-6;
+    @apply transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-xl hover:-translate-y-1;
+  }
+
+  /* 输入框 */
+  .input {
+    @apply w-full px-4 py-3 rounded-lg border;
+    @apply focus:outline-none focus:ring-2;
+    @apply bg-background text-text;
+  }
+
+  [data-theme="cyberpunk"] .input {
+    @apply border-gray-600;
+    @apply focus:ring-cyan-500;
+  }
+
+  [data-theme="cyberpunk"] .input::placeholder {
+    @apply text-gray-500;
+  }
+
+  [data-theme="cyberpunk"] .input:focus {
+    @apply shadow-[0_0_15px_rgba(6,182,212,0.5)];
+  }
+
+  /* 日期选择器和时间选择器 */
+  input[type="date"],
+  input[type="time"] {
+    @apply bg-background text-text;
+  }
+
+  [data-theme="cyberpunk"] input[type="date"],
+  [data-theme="cyberpunk"] input[type="time"] {
+    @apply bg-gray-800 text-white border-gray-600;
+  }
+
+  [data-theme="cyberpunk"] input[type="date"]::-webkit-calendar-picker-indicator,
+  [data-theme="cyberpunk"] input[type="time"]::-webkit-calendar-picker-indicator {
+    @apply text-cyan-400;
+  }
+
+  [data-theme="cyberpunk"] select option {
+    @apply bg-gray-800 text-white;
+  }
+
+  /* ========== 打印样式 ========== */
+  @media print {
+    body {
+      background: white !important;
+      color: black !important;
+    }
+
+    /* 隐藏不需要打印的元素 */
+    .no-print {
+      display: none !important;
+    }
+
+    /* 隐藏导航和按钮 */
+    button, a, nav, .tab-button {
+      display: none !important;
+    }
+
+    /* 优化内容显示 */
+    .card {
+      box-shadow: none !important;
+      border: 1px solid #ddd !important;
+      page-break-inside: avoid;
+    }
+
+    /* 分页控制 */
+    .report-section {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+
+    .dimension-card {
+      page-break-inside: avoid;
+    }
+  }
+}
+
+/* ========== 工具类 ========== */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-secondary;
+  }
+}
+
+/* ========== Toast 动画 ========== */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
