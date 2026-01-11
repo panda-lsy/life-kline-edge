@@ -34,15 +34,18 @@ export function AnalysisProgress({
       return;
     }
 
-    // 立即更新一次
-    setElapsed(Date.now() - startTime);
+    const timeoutId = setTimeout(() => {
+      setElapsed(Date.now() - startTime);
+    }, 0);
 
-    // 每秒更新
-    const interval = setInterval(() => {
+    const intervalId = setInterval(() => {
       setElapsed(Date.now() - startTime);
     }, 100);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
   }, [isAnalyzing, startTime]);
 
   // 如果没有外部进度，自动模拟进度
@@ -57,18 +60,21 @@ export function AnalysisProgress({
       return;
     }
 
-    // 模拟进度：快进慢，最后等待时间较长
-    const interval = setInterval(() => {
-      setInternalProgress((prev) => {
-        if (prev < 30) return prev + 5; // 前30%：快速
-        if (prev < 60) return prev + 3; // 30-60%：中速
-        if (prev < 80) return prev + 2; // 60-80%：慢速
-        if (prev < 95) return prev + 1; // 80-95%：很慢
-        return 95; // 最后停在95%，等待完成
-      });
-    }, 100);
+    const timeoutId = setTimeout(() => {
+      const intervalId = setInterval(() => {
+        setInternalProgress((prev) => {
+          if (prev < 30) return prev + 5;
+          if (prev < 60) return prev + 3;
+          if (prev < 80) return prev + 2;
+          if (prev < 95) return prev + 1;
+          return 95;
+        });
+      }, 100);
 
-    return () => clearInterval(interval);
+      return () => clearInterval(intervalId);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [isAnalyzing, externalProgress]);
 
   const displayProgress = externalProgress ?? internalProgress;

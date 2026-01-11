@@ -25,11 +25,6 @@ interface RequestBody {
   model?: 'gemini' | 'deepseek' | 'gpt-4o';
 }
 
-interface RateLimitKey {
-  userId: string;
-  hour: number; // 时间戳的小时数
-}
-
 /**
  * 生成限流缓存键
  */
@@ -107,8 +102,7 @@ async function checkRateLimit(
 async function callAI(
   baziResult: BaziResult,
   model: string,
-  apiKey: string,
-  prompt: string
+  apiKey: string
 ): Promise<string> {
   // 构建 Prompt
   const { siZhu, wuXing, daYun } = baziResult;
@@ -140,8 +134,8 @@ async function callAI(
 
   // 根据模型选择 API 端点
   let endpoint = '';
-  let headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  let body: any;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  let body: Record<string, unknown>;
 
   if (model === 'gemini') {
     endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
@@ -239,7 +233,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
     }
 
     // 生成用户 ID（从 IP 地址或其他标识）
-    const cf = (request as any).cf;
+    interface CloudflareRequest {
+      cf?: {
+        colo?: string;
+      };
+    }
+    const cf = (request as CloudflareRequest).cf;
     const userId = cf?.colo || 'unknown'; // 使用数据中心作为用户ID（生产环境应使用真实用户ID）
 
     // 检查限流
@@ -303,7 +302,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       }
 
       // 调用 AI API
-      const aiOutput = await callAI(baziResult, model, apiKey, '');
+      const aiOutput = await callAI(baziResult, model, apiKey);
 
       // 解析 AI 输出（这里简化处理，实际应使用 aiParser）
       // 由于边缘函数环境限制，这里做简单 JSON 解析

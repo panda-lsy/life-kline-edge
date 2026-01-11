@@ -5,8 +5,6 @@
  * 部署到阿里云 ESA Pages 边缘函数
  */
 
-import type { ExecutionContext } from '@cloudflare/workers-types';
-
 /**
  * 历史记录项
  */
@@ -36,7 +34,7 @@ interface HistoryRecord {
 /**
  * API 响应格式
  */
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -47,20 +45,12 @@ interface ApiResponse<T = any> {
  * KV 存储键前缀
  */
 const STORAGE_PREFIX = 'history:';
-const USER_LIST_PREFIX = 'user_list:';
 
 /**
  * 生成用户历史记录存储键
  */
 function getUserHistoryKey(userId: string): string {
   return `${STORAGE_PREFIX}${userId}`;
-}
-
-/**
- * 生成用户列表键
- */
-function getUserListKey(): string {
-  return `${USER_LIST_PREFIX}users`;
 }
 
 /**
@@ -271,7 +261,6 @@ export async function onRequest(context: {
 
   try {
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
 
     // 路由: /api/history
     // 支持的操作:

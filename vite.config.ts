@@ -12,7 +12,6 @@ export default defineConfig({
     },
   },
   build: {
-    // 构建优化
     target: 'esnext',
     rollupOptions: {
       output: {
@@ -20,13 +19,13 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom'],
           'recharts': ['recharts'],
           'lunar-javascript': ['lunar-javascript'],
+          'city-data': ['province-city-china'],
         },
       },
     },
-    // 资源内联限制
     assetsInlineLimit: 4096,
-    // CSS 代码分割
     cssCodeSplit: true,
+    chunkSizeWarningLimit: 8000,
   },
   // 图片优化配置
   assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.webp'],

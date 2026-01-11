@@ -49,7 +49,7 @@ export function checkAVIFSupport(): Promise<boolean> {
 /**
  * 缓存格式检测结果
  */
-let formatCache: {
+const formatCache: {
   webp: boolean | null;
   avif: boolean | null;
 } = {

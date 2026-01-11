@@ -54,23 +54,6 @@ function generateCacheKey(birthData: BirthData): string {
 }
 
 /**
- * 处理 CORS
- */
-function handleCORS(request: Request) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  return corsHeaders;
-}
-
-/**
  * 边缘函数主入口
  */
 export async function onRequest(context: { request: Request; env: Env }) {
