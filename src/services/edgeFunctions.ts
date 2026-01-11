@@ -3,8 +3,6 @@
  * 为前端提供便捷的边缘函数调用接口
  */
 
-import type { BirthData, BaziResult, AIAnalysisResult } from '@/types';
-
 /**
  * 边缘函数响应
  */
