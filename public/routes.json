@@ -1,0 +1,11 @@
+{
+  "routes": [
+    {
+      "pattern": "/(.*)",
+      "handler": "index.html",
+      "options": {
+        "status": 200
+      }
+    }
+  ]
+}
