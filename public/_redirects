@@ -1,4 +1,0 @@
-# SPA Router Fallback
-# This ensures all client-side routes work correctly on static hosting platforms
-# GitHub Pages, Netlify, and others will redirect all requests to index.html
-/* /index.html 200

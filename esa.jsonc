@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/aliyun/alibabacloud-esa-er-templates/master/schema.jsonc",
+  "name": "life-kline-edge",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "assets": {
+    "directory": "./dist",
+    "notFoundStrategy": "singlePageApplication"
+  }
+}
