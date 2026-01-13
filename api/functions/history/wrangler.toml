@@ -1,0 +1,12 @@
+{
+  "name": "history",
+  "runtime": "edge",
+  "memory": "128MB"
+  "timeout": "10s",
+  "kv_namespaces": [
+    {
+      "binding": "KV_NAMESPACE",
+      "id": "YOUR_KV_NAMESPACE_ID"
+    }
+  }
+}

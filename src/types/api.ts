@@ -1,30 +1,14 @@
 /**
- * API 接口相关类型定义
+ * 用户历史记录
+ * 历史记录条目类型定义
  */
-
-import type { BirthData, BaziResult } from './bazi';
-import type { AIAnalysisResult } from './kline';
-
-/**
- * API 响应基础类型
- */
-export interface ApiResponse<T = unknown> {
-  /** 是否成功 */
-  success: boolean;
-  /** 数据 */
-  data?: T;
-  /** 错误信息 */
-  error?: string;
-  /** 错误代码 */
-  code?: string;
-}
 
 /**
  * 八字计算请求
  */
 export interface CalculateBaziRequest {
   /** 出生数据 */
-  birthData: BirthData;
+  birthData: import('./bazi').BirthData;
 }
 
 /**
@@ -32,7 +16,7 @@ export interface CalculateBaziRequest {
  */
 export interface CalculateBaziResponse {
   /** 八字结果 */
-  bazi: BaziResult;
+  bazi: import('./bazi').BaziResult;
   /** 是否来自缓存 */
   fromCache?: boolean;
 }
@@ -42,17 +26,17 @@ export interface CalculateBaziResponse {
  */
 export interface AIAnalyzeRequest {
   /** 八字数据 */
-  bazi: BaziResult;
+  baziResult: import('./bazi').BaziResult;
   /** AI 模型（可选） */
-  model?: string;
+  model?: 'gemini-2.5-flash-thinking' | 'gemini-3-pro-preview-low' | 'deepseek-v3' | 'gpt-4o';
 }
 
 /**
  * AI 分析响应
  */
 export interface AIAnalyzeResponse {
-  /** AI 分析结果 */
-  analysis: AIAnalysisResult;
+  /** 分析结果 */
+  analysis: import('./kline').AIAnalysisResult;
   /** 是否来自缓存 */
   fromCache?: boolean;
 }
@@ -66,9 +50,9 @@ export interface CacheEntry {
   /** 缓存值 */
   value: {
     /** 八字数据 */
-    bazi: BaziResult;
+    bazi: import('./bazi').BaziResult;
     /** AI分析（可选） */
-    analysis?: AIAnalysisResult;
+    analysis?: import('./kline').AIAnalysisResult;
   };
   /** 元数据 */
   metadata: {
@@ -99,16 +83,22 @@ export interface UserHistory {
  * 历史记录条目
  */
 export interface HistoryRecord {
-  /** 记录ID */
+  /** 记录 ID */
   id: string;
-  /** 出生数据 */
-  birthData: BirthData;
+  /** 用户 ID（可选，用于多用户隔离） */
+  userId?: string;
+  /** 出生信息 */
+  birthData: import('./bazi').BirthData;
   /** 八字结果 */
-  bazi: BaziResult;
-  /** AI分析（可选） */
-  analysis?: AIAnalysisResult;
+  baziResult: import('./bazi').BaziResult;
+  /** 六维度分析 */
+  dimensionsResult?: import('./kline').SixDimensions;
+  /** K线数据（简化版，仅保存前 20 年） */
+  klineData?: import('./kline').KLineData[];
   /** 创建时间 */
-  createdAt: Date;
+  createdAt: string;
+  /** 备注（可选） */
+  note?: string;
 }
 
 /**
