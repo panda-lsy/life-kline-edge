@@ -3,21 +3,48 @@
  * 基于 lunar-javascript 库
  */
 
-import { Lunar } from 'lunar-javascript';
+import { Lunar, Solar } from 'lunar-javascript';
 import { calculateTrueSolarTime } from './solar.js';
 
-/**
- * 计算四柱八字
- * @param {Object} birthData 出生数据
- * @returns {Object} 八字结果
- */
 export function calculateSiZhu(birthData) {
   const startTime = Date.now();
 
   const [year, month, day] = birthData.birthDate.split('-').map(Number);
   const [hour, minute] = birthData.birthTime.split(':').map(Number);
 
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    throw new Error('出生日期格式错误，请使用 YYYY-MM-DD 格式');
+  }
+
+  if (year < 1900 || year > 2100) {
+    throw new Error('出生年份必须在 1900-2100 之间');
+  }
+
+  if (month < 1 || month > 12) {
+    throw new Error('出生月份必须在 1-12 之间');
+  }
+
+  if (day < 1 || day > 31) {
+    throw new Error('出生日期必须在 1-31 之间');
+  }
+
+  if (isNaN(hour) || isNaN(minute)) {
+    throw new Error('出生时间格式错误，请使用 HH:mm 格式');
+  }
+
+  if (hour < 0 || hour > 23) {
+    throw new Error('出生小时必须在 0-23 之间');
+  }
+
+  if (minute < 0 || minute > 59) {
+    throw new Error('出生分钟必须在 0-59 之间');
+  }
+
   const birthDate = new Date(year, month - 1, day, hour, minute);
+
+  if (isNaN(birthDate.getTime())) {
+    throw new Error(`无效的日期：${year}-${month}-${day}，请检查月份和日期的组合`);
+  }
 
   const trueSolarTime = calculateTrueSolarTime(
     birthDate,
@@ -25,11 +52,8 @@ export function calculateSiZhu(birthData) {
     parseFloat(birthData.location.timezone.split('UTC')[1] || '8') / 100
   );
 
-  const lunar = Lunar.fromYmd(
-    birthDate.getFullYear(),
-    birthDate.getMonth() + 1,
-    birthDate.getDate()
-  );
+  const solar = Solar.fromDate(birthDate);
+  const lunar = solar.getLunar();
 
   const bazi = lunar.getEightChar();
 
