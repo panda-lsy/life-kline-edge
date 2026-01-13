@@ -8,8 +8,27 @@
  * - OPENAI_API_KEY: OpenAI API 密钥
  * - DEEPSEEK_API_KEY: DeepSeek API 密钥
  *
- * API 端点: POST /api/ai-analyze
+ * API 路由:
+ * - POST /api/ai-analyze - AI 分析
  */
+
+import {
+  createCorsResponse,
+  createSuccessResponse,
+  createErrorResponse,
+  createBadRequestResponse,
+  createRateLimitResponse,
+  createNotConfiguredResponse,
+  getKvNamespace,
+  getFromKv,
+  setToKv,
+  getUserIdFromRequest,
+  generateCacheKey,
+} from '../functions/common.js';
+
+const TTL_SECONDS = 30 * 24 * 60 * 60;
+const RATE_LIMIT = 10;
+const RATE_LIMIT_TTL = 60 * 60;
 
 /**
  * 生成限流缓存键
@@ -20,38 +39,16 @@ function generateRateLimitKey(userId, model) {
 }
 
 /**
- * 生成结果缓存键
- */
-function generateResultCacheKey(baziResult, model) {
-  const key = `${baziResult.siZhu.year.gan}${baziResult.siZhu.year.zhi}` +
-               `${baziResult.siZhu.month.gan}${baziResult.siZhu.month.zhi}` +
-               `${baziResult.siZhu.day.gan}${baziResult.siZhu.day.zhi}` +
-               `${baziResult.siZhu.hour.gan}${baziResult.siZhu.hour.zhi}` +
-               `${baziResult.daYun.direction}` +
-               `${model}`;
-
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    const char = key.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-
-  return `ai-result:${model}:${Math.abs(hash)}`;
-}
-
-/**
  * 检查限流
  */
 async function checkRateLimit(kv, userId, model) {
   const key = generateRateLimitKey(userId, model);
-  const limit = 10;
 
   try {
     const countStr = await kv.get(key, 'text');
     const count = countStr ? parseInt(countStr, 10) : 0;
 
-    if (count >= limit) {
+    if (count >= RATE_LIMIT) {
       return {
         allowed: false,
         remaining: 0,
@@ -59,18 +56,16 @@ async function checkRateLimit(kv, userId, model) {
       };
     }
 
-    await kv.put(key, String(count + 1), {
-      expirationTtl: 60 * 60,
-    });
+    await kv.put(key, String(count + 1), { expirationTtl: RATE_LIMIT_TTL });
 
     return {
       allowed: true,
-      remaining: limit - count - 1,
+      remaining: RATE_LIMIT - count - 1,
       resetTime: Math.ceil((Date.now() / (1000 * 60 * 60) + 1) * (1000 * 60 * 60)),
     };
   } catch (e) {
     console.warn('Rate limit check failed:', e);
-    return { allowed: true, remaining: 10, resetTime: 0 };
+    return { allowed: true, remaining: RATE_LIMIT, resetTime: 0 };
   }
 }
 
@@ -112,9 +107,7 @@ async function callAI(baziResult, model, apiKey) {
   if (model === 'gemini') {
     endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
     body = {
-      contents: [{
-        parts: [{ text: baziInfo }]
-      }],
+      contents: [{ parts: [{ text: baziInfo }] }],
       generationConfig: {
         temperature: 0.7,
         topK: 40,
@@ -157,77 +150,49 @@ async function callAI(baziResult, model, apiKey) {
 }
 
 /**
- * 边缘函数主入口
+ * 处理 AI 分析请求
  */
-export async function onRequest(context) {
+async function onRequest(context) {
   const { request, env } = context;
 
   if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    return createCorsResponse();
   }
 
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    return createErrorResponse('Method not allowed', 405);
+  }
+
+  const kv = getKvNamespace(env);
+  if (!kv) {
+    return createErrorResponse('KV 存储未配置');
   }
 
   try {
     const startTime = Date.now();
-
     const body = await request.json();
     const { baziResult, model = 'gemini' } = body;
 
-    if (!baziResult) {
-      return new Response(JSON.stringify({ error: '缺少 baziResult 字段' }), {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      });
+    const validation = validateRequestBody(body, ['baziResult']);
+    if (!validation.valid) {
+      return createBadRequestResponse(`缺少必填字段: ${validation.missingField}`);
     }
 
-    const cf = (request).cf;
-    const userId = cf?.colo || 'unknown';
+    const userId = getUserIdFromRequest(request);
+    const rateLimitInfo = await checkRateLimit(kv, userId, model);
 
-    const rateLimit = await checkRateLimit(env.KV_NAMESPACE, userId, model);
-
-    if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({
-        error: '请求过于频繁，请稍后再试',
-        resetTime: rateLimit.resetTime,
-      }), {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Retry-After': '3600',
-          'X-RateLimit-Limit': '10',
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-        },
-      });
+    if (!rateLimitInfo.allowed) {
+      return createRateLimitResponse(rateLimitInfo.resetTime, RATE_LIMIT, rateLimitInfo.remaining);
     }
 
-    const cacheKey = generateResultCacheKey(baziResult, model);
+    const cacheKey = generateCacheKey({ baziResult, model }, 'ai-result');
     let cachedResult = null;
     let cacheHit = false;
 
     try {
-      const cached = await env.KV_NAMESPACE.get(cacheKey, 'text');
+      const cached = await getFromKv(kv, cacheKey);
       if (cached) {
-        cachedResult = JSON.parse(cached);
+        cachedResult = cached;
         cacheHit = true;
         console.log('AI result cache hit:', cacheKey);
       }
@@ -247,19 +212,10 @@ export async function onRequest(context) {
           : env.OPENAI_API_KEY;
 
       if (!apiKey) {
-        return new Response(JSON.stringify({
-          error: `未配置 ${model} API 密钥`
-        }), {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        });
+        return createNotConfiguredResponse(`${model} API 密钥`);
       }
 
       const aiOutput = await callAI(baziResult, model, apiKey);
-
       result = JSON.parse(aiOutput);
 
       result.metadata = {
@@ -269,55 +225,32 @@ export async function onRequest(context) {
       };
 
       try {
-        await env.KV_NAMESPACE.put(cacheKey, JSON.stringify(result), {
-          expirationTtl: 30 * 24 * 60 * 60,
-        });
+        await setToKv(kv, cacheKey, result, TTL_SECONDS);
         console.log('AI result cached:', cacheKey);
       } catch (e) {
         console.warn('AI cache write failed:', e);
       }
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      data: result,
-      cacheHit,
-      rateLimit: {
-        limit: 10,
-        remaining: rateLimit.remaining,
-        reset: rateLimit.resetTime,
-      },
-      timestamp: new Date().toISOString(),
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'X-RateLimit-Limit': '10',
-        'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-        'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-      },
+    return createSuccessResponse(result, 200, {
+      'X-Cache-Hit': cacheHit.toString(),
+      'X-RateLimit-Limit': RATE_LIMIT.toString(),
+      'X-RateLimit-Remaining': rateLimitInfo.remaining.toString(),
+      'X-RateLimit-Reset': rateLimitInfo.resetTime.toString(),
     });
 
   } catch (error) {
     console.error('AI 分析失败:', error);
-
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : 'AI 分析失败',
-      timestamp: new Date().toISOString(),
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    return createErrorResponse(error instanceof Error ? error.message : 'AI 分析失败');
   }
 }
 
+export async function handler(context) {
+  return onRequest(context);
+}
+
 export default {
-  async fetch(request, env) {
-    return onRequest({ request, env });
+  async fetch(request, env, ctx) {
+    return onRequest({ request, env, ctx });
   },
 };

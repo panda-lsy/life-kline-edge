@@ -10,6 +10,7 @@ import type { BirthData } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { calculateBazi } from '@/utils/bazi/calculator';
 import { quickAnalyze } from '@/services/aiClient';
+import { addHistoryRecord } from '@/services/edgeFunctions';
 import { useTheme } from '@/hooks/useTheme';
 import { getInputPageColors } from '@/utils/themeColors';
 
@@ -78,6 +79,26 @@ export function InputPage() {
       };
 
       sessionStorage.setItem('analysisResult', JSON.stringify(resultData));
+
+      try {
+        await addHistoryRecord({
+          birthData: data,
+          baziResult,
+          dimensionsResult: aiResult.data?.dimensions || {
+            career: { score: 60, overview: '', details: [], advice: [] },
+            wealth: { score: 60, overview: '', details: [], advice: [] },
+            marriage: { score: 60, overview: '', details: [], advice: [] },
+            health: { score: 60, overview: '', details: [], advice: [] },
+            personality: { score: 60, overview: '', details: [], advice: [] },
+            fengshui: { score: 60, overview: '', details: [], advice: [] },
+          },
+          klineData: klineData.slice(0, 20), // 只保存前20年，减少存储大小
+        });
+      } catch (historyError) {
+        console.warn('保存历史记录失败:', historyError);
+        // 不阻塞主流程，即使历史记录保存失败也继续
+      }
+
       setProgress(100);
 
       navigate('/analysis');

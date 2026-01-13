@@ -4,7 +4,7 @@
  */
 
 import { HistoryList } from '@/components/History';
-import type { HistoryRecord } from '@/services/historyService';
+import type { HistoryRecord } from '@/types/api';
 
 export function HistoryPage() {
   const handleRecordClick = (record: HistoryRecord) => {

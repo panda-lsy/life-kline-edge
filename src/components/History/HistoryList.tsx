@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Trash2, Search, Calendar, MapPin, User, FileText, X } from 'lucide-react';
-import { getHistoryService, type HistoryRecord } from '@/services/historyService';
+import { getHistory, deleteHistoryRecord, clearHistoryRecords, type HistoryRecord } from '@/services/edgeFunctions';
 import { useTheme } from '@/hooks/useTheme';
 
 export interface HistoryListProps {
@@ -162,7 +162,7 @@ function HistoryCard({
           <div className="flex items-center gap-2 text-xs transition-colors duration-300" style={{ color: colors.textSecondary }}>
             <Calendar className="w-3 h-3" />
             <span>
-              {record.createdAt.toLocaleDateString('zh-CN', {
+              {new Date(record.createdAt).toLocaleDateString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -233,15 +233,14 @@ export function HistoryList({ onRecordClick, className = '' }: HistoryListProps)
   const [filteredRecords, setFilteredRecords] = useState<HistoryRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const service = getHistoryService();
 
   /**
    * 加载历史记录
    */
-  const loadRecords = useCallback(() => {
+  const loadRecords = useCallback(async () => {
     setIsLoading(true);
     try {
-      const allRecords = service.getAll();
+      const allRecords = await getHistory();
       setRecords(allRecords);
       setFilteredRecords(allRecords);
     } catch (error) {
@@ -249,7 +248,7 @@ export function HistoryList({ onRecordClick, className = '' }: HistoryListProps)
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, []);
 
   /**
    * 初始加载
@@ -265,18 +264,27 @@ export function HistoryList({ onRecordClick, className = '' }: HistoryListProps)
     if (!searchQuery.trim()) {
       setFilteredRecords(records);
     } else {
-      const filtered = service.search(searchQuery);
+      const lowerQuery = searchQuery.toLowerCase();
+      const filtered = records.filter((record) => {
+        const name = record.birthData.name?.toLowerCase() || '';
+        const location = `${record.birthData.location.city} ${record.birthData.location.province}`.toLowerCase();
+        const note = record.note?.toLowerCase() || '';
+
+        return name.includes(lowerQuery) ||
+               location.includes(lowerQuery) ||
+               note.includes(lowerQuery);
+      });
       setFilteredRecords(filtered);
     }
-  }, [searchQuery, records, service]);
+  }, [searchQuery, records]);
 
   /**
    * 处理记录删除
    */
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (window.confirm('确定要删除这条记录吗？')) {
-        const success = service.delete(id);
+        const success = await deleteHistoryRecord(id);
         if (success) {
           loadRecords();
         } else {
@@ -284,20 +292,24 @@ export function HistoryList({ onRecordClick, className = '' }: HistoryListProps)
         }
       }
     },
-    [service, loadRecords]
+    [loadRecords]
   );
 
   /**
    * 处理清空所有记录
    */
-  const handleClearAll = useCallback(() => {
+  const handleClearAll = useCallback(async () => {
     if (
       window.confirm('确定要清空所有历史记录吗？此操作不可恢复。')
     ) {
-      service.clear();
-      loadRecords();
+      const success = await clearHistoryRecords();
+      if (success) {
+        loadRecords();
+      } else {
+        alert('清空失败');
+      }
     }
-  }, [service, loadRecords]);
+  }, [loadRecords]);
 
   /**
    * 处理记录点击
@@ -426,7 +438,15 @@ export function HistoryList({ onRecordClick, className = '' }: HistoryListProps)
               </div>
               <div>
                 <div className="text-2xl font-bold transition-colors duration-300" style={{ color: colors.statsNumber }}>
-                  {service.getStats().byLocation[Object.keys(service.getStats().byLocation)[0]] || 0}
+                  {(() => {
+                    const byLocation: Record<string, number> = {};
+                    records.forEach((record) => {
+                      const location = `${record.birthData.location.province} ${record.birthData.location.city}`;
+                      byLocation[location] = (byLocation[location] || 0) + 1;
+                    });
+                    const entries = Object.entries(byLocation).sort((a, b) => b[1] - a[1]);
+                    return entries[0]?.[1] || 0;
+                  })()}
                 </div>
                 <div className="text-xs transition-colors duration-300" style={{ color: colors.statsLabel }}>
                   最常查询城市

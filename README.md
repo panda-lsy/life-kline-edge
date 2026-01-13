@@ -4,10 +4,6 @@
 
 **本项目由[阿里云ESA](https://www.aliyun.com/product/esa)提供加速、计算和保护**![img](https://img.alicdn.com/imgextra/i3/O1CN01H1UU3i1Cti9lYtFrs_!!6000000000139-2-tps-7534-844.png)
 
-
-[![CI](https://github.com/panda-lsy/life-kline-edge/actions/workflows/ci.yml/badge.svg)](https://github.com/panda-lsy/life-kline-edge/actions/workflows/ci.yml)
-[![Deploy](https://github.com/panda-lsy/life-kline-edge/actions/workflows/deploy.yml/badge.svg)](https://github.com/panda-lsy/life-kline-edge/actions/workflows/deploy.yml)
-
 ## 📖 项目简介
 
 人生 K 线是一个创新的边缘应用,将中国传统八字命理与金融 K 线图可视化相结合,为用户提供独特的人生运势分析视角。
